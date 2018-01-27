@@ -9,8 +9,8 @@ public class LoadXMLTest {
         long current = System.currentTimeMillis();
         XMLHelper xmlHelper = new XMLHelper("main/resources/diff.xml");
 
-        List<User> user = xmlHelper.getBeansByType(User.class);
-        System.out.println(user);
+        List<User> userList = xmlHelper.getBeansByType(User.class);
+        System.out.println(userList);
         long time = System.currentTimeMillis() - current;
         System.out.println("共耗时: " + time + " ms");
     }

@@ -16,5 +16,19 @@
         </property>
     </bean>
 
+    <bean id="user1" class="babyframeworktest.pojo.User">
+        <property name="username" value="Jackson"/>
+        <property name="age" value="29"/>
+        <property name="userCard" ref="JacksonUserCard"/>
+    </bean>
 
+    <bean id="JacksonUserCard" class="babyframeworktest.pojo.UserCard">
+        <property name="card">
+            <bean id="card" class="babyframeworktest.pojo.Card">
+                <property name="material" value="NASA钛合金"/>
+            </bean>
+        </property>
+        <property name="id" value="10000000001"/>
+        <property name="gov" value="焦作市解放区政府"/>
+    </bean>
 </beans>

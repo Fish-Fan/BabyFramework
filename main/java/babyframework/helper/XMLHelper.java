@@ -21,10 +21,14 @@ import java.util.*;
 
 public class XMLHelper<T> {
     private static Logger logger = LoggerFactory.getLogger(XMLHelper.class);
+    //装载bean的容器
     private Map<String,Object> beanMap = new HashMap<String, Object>();
+    //保存bean的ref属性断点信息
+    private Map<Object,RefMessage> beanRefMessageMap = new HashMap<Object, RefMessage>();
 
     public XMLHelper(String XMLFileName) {
         initBeanMap(initXMLReader(XMLFileName));
+        injectBeanFromRefField();
     }
 
     /**
@@ -48,12 +52,13 @@ public class XMLHelper<T> {
      * 扫描XML文件中的所有bean，并完成初始化
      * @param doc
      */
+    @SuppressWarnings("unchecked")
     private void initBeanMap(Document doc) {
         Element root = doc.getRootElement();
-        List<Element> beanList = root.elements();
+        List<Element> beanList = root.elements("bean");
         for(Element bean : beanList) {
             String beanID = bean.attributeValue("id");
-            T o = setBeanProperty(bean);
+            T o = (T) setBeanProperties(bean);
             beanMap.put(beanID,o);
         }
     }
@@ -63,6 +68,7 @@ public class XMLHelper<T> {
      * 如果两个bean的ID冲突，则按照在XML中定义的顺序返回
      * 最后一个以此ID定义的bean
      */
+    @SuppressWarnings("unchecked")
     public T getBeanByID(String beanID) {
         return (T) beanMap.get(beanID);
     }
@@ -70,6 +76,7 @@ public class XMLHelper<T> {
     /**
      * 根据class获取相同类型的bean
      */
+    @SuppressWarnings("unchecked")
     public <T> List<T> getBeansByType(Class<?> clazz) {
         List<T> beanList = new ArrayList<T>();
         for(Map.Entry<String,Object> entry : beanMap.entrySet()) {
@@ -83,89 +90,57 @@ public class XMLHelper<T> {
     }
 
     /**
-     * 获取property内嵌的bean
+     * 通过字段注入初始化bean中的属性
      */
-    public Object getBean(Element rootProperty) {
+    @SuppressWarnings("unchecked")
+    private Object setBeanProperties(Element bean) {
         Object object = null;
-        List<Element> elementList = rootProperty.elements();
-        if(elementList.size() > 0) {
-            //遍历property内置bean
-            for(Element bean : elementList) {
-                String clazz = bean.attributeValue("class");
-                try {
-                    Class<?> cls = Class.forName(clazz);
-                    object = cls.newInstance();
-                    List<Element> properties = bean.elements();
-
-                    for(Element property : properties) {
-                        Field field = cls.getDeclaredField(property.attributeValue("name"));
-                        field.setAccessible(true);
-                        List<Element> childElements = property.elements();
-                        if(childElements.size() > 0) {
-                            Object childObject = getBean(property);
-                            field.set(object,childObject);
-                        } else {
-                            setFieldValue(object,field,property.attributeValue("value"));
-                        }
-
-
-                    }
-                } catch (InstantiationException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                } catch (NoSuchFieldException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        return object;
-    }
-
-    /**
-     * 初始化bean中的各种属性，直接通过
-     * Field来设置，不属于属性注入，也不属于
-     * 构造函数注入，更不属于工厂方法注入
-     */
-    private <T> T setBeanProperty(Element bean) {
-        Object o = null;
+        String clazz = bean.attributeValue("class");
         try {
-            Class clazz = Class.forName(bean.attributeValue("class"));
-            o = clazz.newInstance();
-            List<Element> properties = bean.elements();
-            if(properties.size() > 0) {
-                for(Element property : properties) {
-                    String key = property.attributeValue("name");
-                    Field field = clazz.getDeclaredField(key);
+            Class<?> cls = Class.forName(clazz);
+            object = cls.newInstance();
+            List<Element> properties = bean.elements("property");
 
-                    List<Element> childElements = property.elements();
-                    if(childElements.size() > 0) {
-                        Object childElement = getBean(property);
-                        field.setAccessible(true);
-                        field.set(o,childElement);
-                    } else {
-                        setFieldValue(o,field,property.attributeValue("value"));
-                    }
+            for(Element property : properties) {
+                Field field = cls.getDeclaredField(property.attributeValue("name"));
+                field.setAccessible(true);
+                //初始化propertyMessage对象，与property有关的所有信息从这里获取
+                PropertyMessage propertyMessage = new PropertyMessage(property,field);
 
+                //检查是否有内联bean
+                if(propertyMessage.innerBeans.size() > 0) {
+                    //递归初始化内联bean的属性
+                    Object childObject = setBeanProperties(propertyMessage.innerBeans.get(0));
+                    field.set(object,childObject);
+                //检查是否有ref属性
+                } else if(propertyMessage.refMessage.refValue != null) {
+                    beanRefMessageMap.put(object,new RefMessage(field,propertyMessage.refMessage.refValue));
+                //检查是否有list属性
+                } else if(propertyMessage.list.size() > 0) {
+                    Element list = propertyMessage.list.get(0);
+                    List<Element> valueList = list.elements("value");
                 }
+                else {
+                    setFieldValue(object,field,property.attributeValue("value"));
+                }
+
+
             }
-        } catch (ClassNotFoundException e) {
+        } catch (InstantiationException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {
             e.printStackTrace();
-        } catch (InstantiationException e) {
+        } catch (ClassNotFoundException e) {
             e.printStackTrace();
         } catch (NoSuchFieldException e) {
             e.printStackTrace();
         }
-        return (T) o;
+        return object;
     }
 
 
     /**
-     * 设置不同类型字段的值
+     * 将从XML中读取的value转为bean中属性所需要的类型
      */
     private void setFieldValue(Object o,Field field,String value) {
         field.setAccessible(true);
@@ -198,6 +173,73 @@ public class XMLHelper<T> {
         } catch (IllegalAccessException e) {
             logger.error("设置字段值时发生错误，请检查类型转换是否在可支持的范围内");
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * 获取该property中的ref属性
+     */
+    private String getRefField(Element property) {
+        return property.attributeValue("ref");
+    }
+
+    /**
+     * 将ref字段所依赖的bean注入
+     */
+    private void injectBeanFromRefField() {
+        for(Map.Entry<Object,RefMessage> entry : beanRefMessageMap.entrySet()) {
+            Object o = entry.getKey();
+            RefMessage refMessage = entry.getValue();
+            Field field = refMessage.field;
+            field.setAccessible(true);
+            try {
+                field.set(o,beanMap.get(refMessage.refValue));
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * 内部静态类，用于存放ref字段的信息
+     * 当整个xml文件被读取完毕之后，检查
+     * 所有ref字段，并将对应的bean注入
+     */
+    private static class RefMessage {
+        /**
+         * 字段
+         */
+        private Field field;
+        /**
+         * 字段对应的bean的ID
+         */
+        private String refValue;
+
+        public RefMessage(Field field, String refValue) {
+            this.field = field;
+            this.refValue = refValue;
+        }
+    }
+
+    /**
+     * 内部静态类，用于存放property的各种信息
+     */
+    @SuppressWarnings("unchecked")
+    private static class PropertyMessage {
+        private Element property;
+        private List<Element> innerBeans;
+        private RefMessage refMessage;
+        private List<Element> list;
+        private List<Element> set;
+        private List<Element> map;
+
+        public PropertyMessage(Element property,Field field) {
+            this.property = property;
+            this.innerBeans = property.elements("bean");
+            this.refMessage = new RefMessage(field,property.attributeValue("ref"));
+            this.list = property.elements("list");
+            this.set = property.elements("set");
+            this.map = property.elements("map");
         }
     }
 }
