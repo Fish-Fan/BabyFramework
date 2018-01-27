@@ -1,5 +1,6 @@
 package babyframework.util;
 
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
@@ -12,10 +13,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.logging.Logger;
 
 public final class ClassUtil {
-//    private static final Logger LOGGER = (Logger) LoggerFactory.getLogger(ClassUtil.class);
+    private static Logger logger = LoggerFactory.getLogger(ClassUtil.class);
 
     /**
      * 获取类加载器
@@ -32,6 +32,7 @@ public final class ClassUtil {
         try {
             clazz = Class.forName(className,isInitialized,getClassLoader());
         } catch (ClassNotFoundException e) {
+            logger.error("无法获取{}类",className);
             e.printStackTrace();
         }
         return clazz;
@@ -71,6 +72,7 @@ public final class ClassUtil {
             }
 
         } catch (IOException e) {
+            logger.error("无法获取{}下的类",packageName);
             e.printStackTrace();
         }
         return classSet;

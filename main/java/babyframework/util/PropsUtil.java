@@ -10,10 +10,9 @@ import java.util.logging.Logger;
 
 /**
  * 用于读取属性文件，获取每个属性的路径、值
- * Created by sihanwang on 2017/8/19.
  */
 public final class PropsUtil {
-    public static  final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(PropsUtil.class);
+    public static org.slf4j.Logger logger = LoggerFactory.getLogger(PropsUtil.class);
 
     /**
      * 加载属性文件，读取properties文件
@@ -30,13 +29,13 @@ public final class PropsUtil {
             props = new Properties();
             props.load(is);
         }catch (IOException e){
-            LOGGER.error("load properties file failure",e);
+            logger.error("load properties file failure",e);
         }finally {
             if (is != null){
                 try{
                     is.close();
                 }catch (IOException e){
-                    LOGGER.error("close input stream error",e);
+                    logger.error("close input stream error",e);
                 }
             }
         }

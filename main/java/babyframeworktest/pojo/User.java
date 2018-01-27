@@ -1,8 +1,9 @@
-package babyframeworktest;
+package babyframeworktest.pojo;
 
 public class User {
     private String username;
     private int age;
+    private UserCard userCard;
 
     public String getUsername() {
         return username;
@@ -20,11 +21,20 @@ public class User {
         this.age = age;
     }
 
+    public UserCard getUserCard() {
+        return userCard;
+    }
+
+    public void setUserCard(UserCard userCard) {
+        this.userCard = userCard;
+    }
+
     @Override
     public String toString() {
         return "User{" +
                 "username='" + username + '\'' +
-                ", age='" + age + '\'' +
+                ", age=" + age +
+                ", userCard=" + userCard +
                 '}';
     }
 }

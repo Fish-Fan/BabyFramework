@@ -2,6 +2,7 @@ package babyframeworktest;
 
 import babyframework.annotation.Controller;
 import babyframework.annotation.Inject;
+import babyframeworktest.pojo.User;
 
 @Controller
 public class UserController {

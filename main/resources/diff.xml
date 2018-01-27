@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans>
+    <bean id="user" class="babyframeworktest.pojo.User">
+        <property name="username" value="tom"/>
+        <property name="age" value="22"/>
+        <property name="userCard">
+            <bean id="userCard" class="babyframeworktest.pojo.UserCard">
+                <property name="card">
+                    <bean id="card" class="babyframeworktest.pojo.Card">
+                        <property name="material" value="NASA钛合金"/>
+                    </bean>
+                </property>
+                <property name="id" value="10000000001"/>
+                <property name="gov" value="焦作市解放区政府"/>
+            </bean>
+        </property>
+    </bean>
+
+
+</beans>
