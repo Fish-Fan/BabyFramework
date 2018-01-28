@@ -1,5 +1,6 @@
 package babyframework.helper;
 
+import babyframework.util.StringUtil;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.Element;
@@ -9,6 +10,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 
 /**
@@ -22,13 +25,15 @@ import java.util.*;
 public class XMLHelper<T> {
     private static Logger logger = LoggerFactory.getLogger(XMLHelper.class);
     //装载bean的容器
-    private Map<String,Object> beanMap = new HashMap<String, Object>();
+    private Map<String,Object> beanContainer = new HashMap<String, Object>();
     //保存bean的ref属性断点信息
-    private Map<Object,RefMessage> beanRefMessageMap = new HashMap<Object, RefMessage>();
-
+    private Map<Object,RefMessage> breakPointRefMessageContainer = new HashMap<Object, RefMessage>();
+    //保存Map的断点信息
+    private Map<Object,MapFieldMessage> mapBreakPointRefMessageContainer = new HashMap<Object, MapFieldMessage>();
     public XMLHelper(String XMLFileName) {
         initBeanMap(initXMLReader(XMLFileName));
         injectBeanFromRefField();
+        injectMapRefBean();
     }
 
     /**
@@ -59,7 +64,7 @@ public class XMLHelper<T> {
         for(Element bean : beanList) {
             String beanID = bean.attributeValue("id");
             T o = (T) setBeanProperties(bean);
-            beanMap.put(beanID,o);
+            beanContainer.put(beanID,o);
         }
     }
 
@@ -70,7 +75,7 @@ public class XMLHelper<T> {
      */
     @SuppressWarnings("unchecked")
     public T getBeanByID(String beanID) {
-        return (T) beanMap.get(beanID);
+        return (T) beanContainer.get(beanID);
     }
 
     /**
@@ -79,7 +84,7 @@ public class XMLHelper<T> {
     @SuppressWarnings("unchecked")
     public <T> List<T> getBeansByType(Class<?> clazz) {
         List<T> beanList = new ArrayList<T>();
-        for(Map.Entry<String,Object> entry : beanMap.entrySet()) {
+        for(Map.Entry<String,Object> entry : beanContainer.entrySet()) {
             T o = (T) entry.getValue();
             Class oClass = o.getClass();
             if(oClass.getName().equals(clazz.getName())) {
@@ -113,12 +118,19 @@ public class XMLHelper<T> {
                     Object childObject = setBeanProperties(propertyMessage.innerBeans.get(0));
                     field.set(object,childObject);
                 //检查是否有ref属性
-                } else if(propertyMessage.refMessage.refValue != null) {
-                    beanRefMessageMap.put(object,new RefMessage(field,propertyMessage.refMessage.refValue));
+                } else if(getTagRefField(property) != null) {
+                    List<String> refFieldValue = new ArrayList<String>();
+                    refFieldValue.add(getTagRefField(property));
+                    breakPointRefMessageContainer.put(object,new RefMessage(field,refFieldValue));
                 //检查是否有list属性
                 } else if(propertyMessage.list.size() > 0) {
-                    Element list = propertyMessage.list.get(0);
-                    List<Element> valueList = list.elements("value");
+                    resolveListField(propertyMessage,field,object);
+                //检查是否有set属性
+                } else if(propertyMessage.set.size() > 0) {
+                    resolveSetField(propertyMessage,field,object);
+                //检查是否有map属性
+                } else if(propertyMessage.map.size() > 0) {
+                    resolveMapField(propertyMessage,field,object);
                 }
                 else {
                     setFieldValue(object,field,property.attributeValue("value"));
@@ -177,28 +189,204 @@ public class XMLHelper<T> {
     }
 
     /**
-     * 获取该property中的ref属性
+     * 获取该tag中的ref属性
      */
-    private String getRefField(Element property) {
-        return property.attributeValue("ref");
+    private String getTagRefField(Element tag) {
+        return tag.attributeValue("ref");
+    }
+
+    /**
+     * 尝试直接读取<value>xxx<value/>
+     * 检查整个tagList是否含有value
+     * 如果有一个含有返回true
+     */
+    private boolean checkTagListHasText(List<Element> valueTagList) {
+        boolean result = false;
+        for(Element valueTag : valueTagList) {
+            if(StringUtil.isNotEmpty(valueTag.getText())) {
+                result = true;
+                break;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 尝试直接读取<value>xxx<value/>
+     * 检查单个tag是否含有text
+     * 如果有值返回true
+     */
+    private boolean checkTagHasText(Element tag) {
+        return StringUtil.isNotEmpty(tag.getText()) ? true : false;
     }
 
     /**
      * 将ref字段所依赖的bean注入
      */
     private void injectBeanFromRefField() {
-        for(Map.Entry<Object,RefMessage> entry : beanRefMessageMap.entrySet()) {
+        for(Map.Entry<Object,RefMessage> entry : breakPointRefMessageContainer.entrySet()) {
             Object o = entry.getKey();
             RefMessage refMessage = entry.getValue();
             Field field = refMessage.field;
             field.setAccessible(true);
+            //获取field的类型
+            Type fieldType = field.getGenericType();
+
             try {
-                field.set(o,beanMap.get(refMessage.refValue));
+                //如果是集合类型
+                if(fieldType instanceof ParameterizedType) {
+                    Object refValueObject = refMessage.refValue;
+
+                    if(refValueObject instanceof List) {
+                        List<String> refValueList = (List<String>) refValueObject;
+                        List<Object> refBeanList = new ArrayList<Object>();
+                        for(String refValue : refValueList) {
+                            Object bean = beanContainer.get(refValue);
+                            refBeanList.add(bean);
+                        }
+                        field.set(o,refBeanList);
+                    } else if(refValueObject instanceof Set) {
+                        Set<String> refValueList = (Set<String>) refValueObject;
+                        Set<Object> refBeanList = new HashSet<Object>();
+                        for(String refValue : refValueList) {
+                            Object bean = beanContainer.get(refValue);
+                            refBeanList.add(bean);
+                        }
+                        field.set(o,refBeanList);
+                    }
+                //如果是普通类型
+                } else if(fieldType instanceof Class) {
+                    field.set(o,beanContainer.get(refMessage.refValue.toString()));
+                }
             } catch (IllegalAccessException e) {
                 e.printStackTrace();
             }
         }
     }
+
+    /**
+     * 将map类型的属性所依赖的bean注入
+     */
+    private void injectMapRefBean() {
+        for(Map.Entry<Object,MapFieldMessage> entry : mapBreakPointRefMessageContainer.entrySet()) {
+            Object o = entry.getKey();
+            MapFieldMessage mapFieldMessage = entry.getValue();
+            Field field = mapFieldMessage.field;
+            field.setAccessible(true);
+            List<MapRefMessage> mapRefMessageList = mapFieldMessage.mapRefMessages;
+
+            Map<Object,Object> map = new HashMap<Object, Object>();
+
+            for(MapRefMessage message : mapRefMessageList) {
+                if(message.code == 0) {
+                    map.put(beanContainer.get(message.key),beanContainer.get(message.value));
+                } else if(message.code == -1) {
+                    map.put(beanContainer.get(message.key),message.value);
+                } else {
+                    map.put(message.key,beanContainer.get(message.value));
+                }
+            }
+
+            try {
+                Map<Object,Object> tempMap = (Map<Object, Object>) field.get(o);
+                tempMap.putAll(map);
+                field.set(o,tempMap);
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * 解析list类型的字段
+     */
+    @SuppressWarnings("unchecked")
+    private void resolveListField(PropertyMessage propertyMessage,Field field,Object object) throws IllegalAccessException {
+        Element listTag = propertyMessage.list.get(0);
+        List<Element> valueTagList = listTag.elements("value");
+
+        if(checkTagListHasText(valueTagList)) {
+            List<String> valueList = new ArrayList<String>();
+            for(Element valueTag : valueTagList) {
+                valueList.add(valueTag.getText());
+            }
+            field.set(object,valueList);
+        } else {
+            List<String> refBeanList = new ArrayList<String>();
+            RefMessage listRefMessage = new RefMessage(field,refBeanList);
+
+            for(Element valueTag : valueTagList) {
+                refBeanList.add(getTagRefField(valueTag));
+            }
+            listRefMessage.refValue = refBeanList;
+            breakPointRefMessageContainer.put(object,listRefMessage);
+        }
+    }
+
+    /**
+     * 解析set类型字段
+     */
+    private void resolveSetField(PropertyMessage propertyMessage,Field field,Object object) throws IllegalAccessException {
+        Element listTag = propertyMessage.set.get(0);
+        List<Element> valueTagList = listTag.elements("value");
+
+        if(checkTagListHasText(valueTagList)) {
+            Set<String> valueSet = new HashSet<String>();
+            for(Element valueTag : valueTagList) {
+                valueSet.add(valueTag.getText());
+            }
+            field.set(object,valueSet);
+        } else {
+            Set<String> refBeanSet = new HashSet<String>();
+
+            for(Element valueTag : valueTagList) {
+                refBeanSet.add(getTagRefField(valueTag));
+            }
+            RefMessage listRefMessage = new RefMessage(field,refBeanSet);
+            listRefMessage.refValue = refBeanSet;
+            breakPointRefMessageContainer.put(object,listRefMessage);
+        }
+    }
+
+    /**
+     * 解析map类型字段
+     */
+    @SuppressWarnings("unchecked")
+    private void resolveMapField(PropertyMessage propertyMessage,Field field,Object object) throws IllegalAccessException {
+        Element mapTag = propertyMessage.map.get(0);
+        //用来存储不含ref属性的entry
+        Map<Object,Object> map = new HashMap<Object, Object>();
+        List<Element> entryTagList = mapTag.elements("entry");
+        //存放含有任意ref属性的数据结构
+        List<MapRefMessage> mapRefMessages = new ArrayList<MapRefMessage>();
+        for(Element entryTag : entryTagList) {
+            Element keyTag = entryTag.element("key");
+            Element valueTag = entryTag.element("value");
+
+            int flag = 0;
+
+            if(!checkTagHasText(keyTag)) {
+                flag += -1;
+            }
+
+            if(!checkTagHasText(valueTag)) {
+                flag += 1;
+            }
+
+            if(checkTagHasText(keyTag) && checkTagHasText(valueTag)) {
+                map.put(keyTag.getText(),valueTag.getText());
+            } else if(flag == -1) {
+                mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),valueTag.getText()));
+            } else if(flag == 1) {
+                mapRefMessages.add(new MapRefMessage(flag,keyTag.getText(),getTagRefField(valueTag)));
+            } else {
+                mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),getTagRefField(valueTag)));
+            }
+        }
+        field.set(object,map);
+        mapBreakPointRefMessageContainer.put(object,new MapFieldMessage(field,mapRefMessages));
+    }
+
 
     /**
      * 内部静态类，用于存放ref字段的信息
@@ -213,9 +401,10 @@ public class XMLHelper<T> {
         /**
          * 字段对应的bean的ID
          */
-        private String refValue;
+//        private List<String> refValue;
+        private Object refValue;
 
-        public RefMessage(Field field, String refValue) {
+        public RefMessage(Field field, Object refValue) {
             this.field = field;
             this.refValue = refValue;
         }
@@ -228,7 +417,6 @@ public class XMLHelper<T> {
     private static class PropertyMessage {
         private Element property;
         private List<Element> innerBeans;
-        private RefMessage refMessage;
         private List<Element> list;
         private List<Element> set;
         private List<Element> map;
@@ -236,10 +424,41 @@ public class XMLHelper<T> {
         public PropertyMessage(Element property,Field field) {
             this.property = property;
             this.innerBeans = property.elements("bean");
-            this.refMessage = new RefMessage(field,property.attributeValue("ref"));
             this.list = property.elements("list");
             this.set = property.elements("set");
             this.map = property.elements("map");
+        }
+    }
+
+    /**
+     * 用来存放xml中每个entry的信息
+     */
+    private static class MapRefMessage {
+        /**
+         * 如果key和value都有ref,值为0
+         * 如果key有ref,value没有ref,值为-1
+         * 如果key没有ref,value有ref,值为1
+         */
+        private int code;
+        private Object key;
+        private Object value;
+
+        public MapRefMessage(int code,Object key,Object value) {
+            this.code = code;
+            this.key = key;
+            this.value = value;
+        }
+    }
+
+    private static class MapFieldMessage {
+        //属性类型为map的字段
+        private Field field;
+        //保存该字段map信息的集合
+        private List<MapRefMessage> mapRefMessages;
+
+        public MapFieldMessage(Field field,List<MapRefMessage> mapRefMessages) {
+            this.field = field;
+            this.mapRefMessages = mapRefMessages;
         }
     }
 }

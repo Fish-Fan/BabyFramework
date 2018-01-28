@@ -4,22 +4,39 @@
         <property name="username" value="tom"/>
         <property name="age" value="22"/>
         <property name="userCard">
-            <bean id="userCard" class="babyframeworktest.pojo.UserCard">
-                <property name="card">
-                    <bean id="card" class="babyframeworktest.pojo.Card">
-                        <property name="material" value="NASA钛合金"/>
-                    </bean>
-                </property>
-                <property name="id" value="10000000001"/>
-                <property name="gov" value="焦作市解放区政府"/>
-            </bean>
+            <map>
+                <entry>
+                    <key>Jackson</key>
+                    <value ref="JacksonUserCard"/>
+                </entry>
+                <entry>
+                    <key>Jackson1</key>
+                    <value ref="JacksonUserCard"/>
+                </entry>
+                <entry>
+                    <key>Jackson2</key>
+                    <value ref="JacksonUserCard"/>
+                </entry>
+            </map>
+        </property>
+        <property name="nickName">
+            <set>
+                <value>小tom</value>
+                <value>会说话的tom猫</value>
+                <value>美国tom大叔</value>
+                <value>美国tom大叔</value>
+            </set>
         </property>
     </bean>
 
     <bean id="user1" class="babyframeworktest.pojo.User">
         <property name="username" value="Jackson"/>
         <property name="age" value="29"/>
-        <property name="userCard" ref="JacksonUserCard"/>
+        <property name="userCard">
+            <set>
+                <value ref="JacksonUserCard"/>
+            </set>
+        </property>
     </bean>
 
     <bean id="JacksonUserCard" class="babyframeworktest.pojo.UserCard">
@@ -31,4 +48,6 @@
         <property name="id" value="10000000001"/>
         <property name="gov" value="焦作市解放区政府"/>
     </bean>
+
+
 </beans>

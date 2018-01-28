@@ -1,9 +1,14 @@
 package babyframeworktest.pojo;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 public class User {
     private String username;
     private int age;
-    private UserCard userCard;
+    private Map<String,UserCard> userCard;
+    private Set<String> nickName;
 
     public String getUsername() {
         return username;
@@ -21,12 +26,20 @@ public class User {
         this.age = age;
     }
 
-    public UserCard getUserCard() {
+    public Map<String, UserCard> getUserCard() {
         return userCard;
     }
 
-    public void setUserCard(UserCard userCard) {
+    public void setUserCard(Map<String, UserCard> userCard) {
         this.userCard = userCard;
+    }
+
+    public Set<String> getNickName() {
+        return nickName;
+    }
+
+    public void setNickName(Set<String> nickName) {
+        this.nickName = nickName;
     }
 
     @Override
@@ -34,7 +47,8 @@ public class User {
         return "User{" +
                 "username='" + username + '\'' +
                 ", age=" + age +
-                ", userCard=" + userCard +
+                ", userCard=" + userCard.size() +
+                ", nickName=" + nickName +
                 '}';
     }
 }
