@@ -2,18 +2,19 @@
 xml文件书写与xml标准一致，目前支持bean加载，bean之间的ref引用。
 对bean属性类型的支持如下表所示:
 
-|         基本类型        |     |    |     |
-|---------------------|-----|----|-----|
-|  int (Integer)      |     |    |     |
-|  long (Long)        |     |    |     |
-|  float (Float)      |     |    |     |
-|  double (Double)    |     |    |     |
-|  boolean (Boolean)  |     |    |     |
-|  String             |     |    |     |
-|  集合类型               |     |    |     |
-|  List               |     |    |     |
-|  Set                |     |    |     |
-|  Map                |     |    |     |
+| 基本类型          |
+|-------------------|
+| int (Integer)     |
+| long (Long)       |
+| float (Float)     |
+| double (Double)   |
+| boolean (Boolean) |
+| String            |
+| 集合类型          |
+|-------------------|
+| List              |
+| Set               |
+| Map               |
 
 
 + 让容器加载bean
