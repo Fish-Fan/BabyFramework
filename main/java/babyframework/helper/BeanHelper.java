@@ -1,5 +1,7 @@
 package babyframework.helper;
 
+import babyframework.factory.Bean;
+import babyframework.factory.BeanScope;
 import babyframework.util.ReflectionUtil;
 
 import java.util.HashMap;
@@ -7,31 +9,21 @@ import java.util.Map;
 import java.util.Set;
 
 public final class BeanHelper {
-    private static final Map<Class<?>,Object> BEAN_MAP = new HashMap<Class<?>, Object>();
+    private static final Map<Class<?>,Bean> BEAN_MAP = new HashMap<Class<?>, Bean>();
 
     static {
         Set<Class<?>> classSet = ClassHelper.getClassSet();
         for(Class<?> clazz : classSet) {
             Object o = ReflectionUtil.newInstance(clazz);
-            BEAN_MAP.put(clazz,o);
+            BEAN_MAP.put(clazz,new Bean(clazz,clazz.getName(), BeanScope.SINGLETON,o));
         }
     }
 
     /**
-     * 获取Bean映射
+     * 获取BEAN_MAP
      */
-    public static Map<Class<?>,Object> getBeanMap() {
+    public static Map<Class<?>,Bean> getBeanMap() {
         return BEAN_MAP;
-    }
-
-    /**
-     * 根据Class对象获取Bean实例
-     */
-    public static <T> T getBean(Class<T> clazz) {
-        if(!BEAN_MAP.containsKey(clazz)) {
-            throw new RuntimeException("can not get bean by class : " + clazz);
-        }
-        return (T) BEAN_MAP.get(clazz);
     }
 
 

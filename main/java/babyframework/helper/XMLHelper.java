@@ -1,6 +1,7 @@
 package babyframework.helper;
 
-import babyframework.util.ClassUtil;
+import babyframework.factory.Bean;
+import babyframework.factory.BeanScope;
 import babyframework.util.ReflectionUtil;
 import babyframework.util.StringUtil;
 import org.dom4j.Document;
@@ -27,15 +28,16 @@ import java.util.*;
 public class XMLHelper<T> {
     private static Logger logger = LoggerFactory.getLogger(XMLHelper.class);
     //装载bean的容器
-    private Map<String,Object> beanContainer = new HashMap<String, Object>();
+    private static Map<String,Bean> beanContainer = new HashMap<String, Bean>();
     //保存bean的ref属性断点信息
-    private Map<Object,RefMessage> breakPointRefMessageContainer = new HashMap<Object, RefMessage>();
+    private static Map<Object,RefMessage> breakPointRefMessageContainer = new HashMap<Object, RefMessage>();
     //保存Map的断点信息
-    private Map<Object,MapFieldMessage> mapBreakPointRefMessageContainer = new HashMap<Object, MapFieldMessage>();
+    private static Map<Object,MapFieldMessage> mapBreakPointRefMessageContainer = new HashMap<Object, MapFieldMessage>();
     public XMLHelper(String XMLFileName) {
         initBeanMap(initXMLReader(XMLFileName));
         injectBeanFromRefField();
         injectMapRefBean();
+        clean();
     }
 
     /**
@@ -64,10 +66,40 @@ public class XMLHelper<T> {
         Element root = doc.getRootElement();
         List<Element> beanList = root.elements("bean");
         for(Element bean : beanList) {
-            String beanID = bean.attributeValue("id");
-            T o = (T) setBeanProperties(bean);
-            beanContainer.put(beanID,o);
+            try {
+                String beanID = bean.attributeValue("id");
+                T o = (T) setBeanProperties(bean);
+                Class<?> cls = Class.forName(bean.attributeValue("class"));
+
+                String beanScope = bean.attributeValue("scope");
+                BeanScope scope = BeanScope.SINGLETON;
+                if(StringUtil.isNotEmpty(beanScope) && beanScope.equals("prototype")) {
+                    scope = BeanScope.PROTOTYPE;
+                }
+
+                beanContainer.put(beanID,new Bean(cls,beanID,scope,o));
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+
         }
+    }
+
+    /**
+     * 清理breakPointRefMessageContainer,mapBreakPointRefMessageContainer
+     */
+    private void clean() {
+        //Help GC
+        breakPointRefMessageContainer = null;
+        mapBreakPointRefMessageContainer = null;
+    }
+
+    /**
+     * 获取从xml中读取的bean
+     * @return
+     */
+    public Map<String,Bean> getXMLBeanContainer() {
+        return beanContainer;
     }
 
     /**
@@ -76,8 +108,8 @@ public class XMLHelper<T> {
      * 最后一个以此ID定义的bean
      */
     @SuppressWarnings("unchecked")
-    public T getBeanByID(String beanID) {
-        return (T) beanContainer.get(beanID);
+    public Object getBeanByID(String beanID) {
+        return beanContainer.get(beanID);
     }
 
     /**
@@ -86,8 +118,9 @@ public class XMLHelper<T> {
     @SuppressWarnings("unchecked")
     public <T> List<T> getBeansByType(Class<?> clazz) {
         List<T> beanList = new ArrayList<T>();
-        for(Map.Entry<String,Object> entry : beanContainer.entrySet()) {
-            T o = (T) entry.getValue();
+        for(Map.Entry<String,Bean> entry : beanContainer.entrySet()) {
+            Bean bean = entry.getValue();
+            T o = (T) bean.object;
             Class oClass = o.getClass();
             if(oClass.getName().equals(clazz.getName())) {
                 beanList.add(o);
@@ -374,49 +407,51 @@ public class XMLHelper<T> {
             int flag = 0;
 
             if(StringUtil.isNotEmpty(getTagRefField(keyTag))) {
-                flag += 1;
-            }
-
-            if(StringUtil.isNotEmpty(getTagRefField(valueTag))) {
-                flag += 2;
-            }
-
-            //key和value标签都没有ref属性
-            if(flag == 3) {
-                mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),getTagRefField(valueTag)));
-            //key没有ref属性，value有ref属性
-            } else if(flag == 2) {
-                if(checkTagHasText(keyTag)) {
-                    mapRefMessages.add(new MapRefMessage(flag,keyTag.getText(),getTagRefField(valueTag)));
-                } else {
-                    Object keyTagInnerBean = setBeanProperties(keyTag.element("bean"));
-                    mapRefMessages.add(new MapRefMessage(flag,keyTagInnerBean,getTagRefField(valueTag)));
-                }
-            //key有ref属性，value有ref属性
-            } else if(flag == 1) {
-                if(checkTagHasText(valueTag)) {
+                //key->ref,value->ref
+                if(StringUtil.isNotEmpty(getTagRefField(valueTag))) {
+                    flag = 3;
+                    mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),getTagRefField(valueTag)));
+                //key->ref,value->String
+                } else if(checkTagHasText(valueTag)) {
+                    flag = 1;
                     mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),valueTag.getText()));
+                //key->ref,value->innerBean
                 } else {
+                    flag = 1;
                     Object valueTagInnerBean = setBeanProperties(valueTag.element("bean"));
                     mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),valueTagInnerBean));
                 }
-            //key和value都没有ref属性
-            } else {
-                if(checkTagHasText(keyTag) && checkTagHasText(valueTag)) {
+            } else if(checkTagHasText(keyTag)) {
+                //key->String,value->ref
+                if(StringUtil.isNotEmpty(getTagRefField(valueTag))) {
+                    flag = 2;
+                    mapRefMessages.add(new MapRefMessage(flag,keyTag.getText(),getTagRefField(valueTag)));
+                //key->String,value->String
+                } else if(checkTagHasText(valueTag)) {
                     map.put(keyTag.getText(),valueTag.getText());
-                } else if(checkTagHasText(keyTag) && !checkTagHasText(valueTag)) {
+                //key->String,value->innerBean
+                } else {
                     Object valueTagInnerBean = setBeanProperties(valueTag.element("bean"));
                     map.put(keyTag.getText(),valueTagInnerBean);
-                } else if(!checkTagHasText(keyTag) && checkTagHasText(valueTag)) {
+                }
+            } else {
+                //key->innerBean,value->ref
+                if(StringUtil.isNotEmpty(getTagRefField(valueTag))) {
+                    flag = 2;
+                    Object keyTagInnerBean = setBeanProperties(keyTag.element("bean"));
+                    mapRefMessages.add(new MapRefMessage(flag,keyTagInnerBean,getTagRefField(valueTag)));
+                //key->innerBean,value->String
+                } else if(checkTagHasText(valueTag)) {
                     Object keyTagInnerBean = setBeanProperties(keyTag.element("bean"));
                     map.put(keyTagInnerBean,valueTag.getText());
+                //key->innerBean,value->innerBean
                 } else {
                     Object keyTagInnerBean = setBeanProperties(keyTag.element("bean"));
                     Object valueTagInnerBean = setBeanProperties(valueTag.element("bean"));
                     map.put(keyTagInnerBean,valueTagInnerBean);
                 }
-
             }
+
         }
         field.set(object,map);
         mapBreakPointRefMessageContainer.put(object,new MapFieldMessage(field,mapRefMessages));
@@ -469,9 +504,9 @@ public class XMLHelper<T> {
      */
     private static class MapRefMessage {
         /**
-         * 如果key和value都有ref,值为0
-         * 如果key有ref,value没有ref,值为-1
-         * 如果key没有ref,value有ref,值为1
+         * 如果key和value都有ref,值为3
+         * 如果key有ref,value没有ref,值为1
+         * 如果key没有ref,value有ref,值为2
          */
         private int code;
         private Object key;
