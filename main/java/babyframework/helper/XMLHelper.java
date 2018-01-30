@@ -1,5 +1,7 @@
 package babyframework.helper;
 
+import babyframework.util.ClassUtil;
+import babyframework.util.ReflectionUtil;
 import babyframework.util.StringUtil;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
@@ -96,6 +98,7 @@ public class XMLHelper<T> {
 
     /**
      * 通过字段注入初始化bean中的属性
+     * 如果有内联bean，初始化并注入
      */
     @SuppressWarnings("unchecked")
     private Object setBeanProperties(Element bean) {
@@ -103,7 +106,7 @@ public class XMLHelper<T> {
         String clazz = bean.attributeValue("class");
         try {
             Class<?> cls = Class.forName(clazz);
-            object = cls.newInstance();
+            object = ReflectionUtil.newInstance(cls);
             List<Element> properties = bean.elements("property");
 
             for(Element property : properties) {
@@ -138,8 +141,6 @@ public class XMLHelper<T> {
 
 
             }
-        } catch (InstantiationException e) {
-            e.printStackTrace();
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
@@ -221,6 +222,13 @@ public class XMLHelper<T> {
     }
 
     /**
+     * 检查tag是否含有内联bean
+     */
+    private boolean checkTagHasInnerBean(Element tag) {
+        return tag.element("bean") != null ? true : false;
+    }
+
+    /**
      * 将ref字段所依赖的bean注入
      */
     private void injectBeanFromRefField() {
@@ -278,12 +286,12 @@ public class XMLHelper<T> {
             Map<Object,Object> map = new HashMap<Object, Object>();
 
             for(MapRefMessage message : mapRefMessageList) {
-                if(message.code == 0) {
+                if(message.code == 3) {
                     map.put(beanContainer.get(message.key),beanContainer.get(message.value));
-                } else if(message.code == -1) {
-                    map.put(beanContainer.get(message.key),message.value);
-                } else {
+                } else if(message.code == 2) {
                     map.put(message.key,beanContainer.get(message.value));
+                } else {
+                    map.put(beanContainer.get(message.key),message.value);
                 }
             }
 
@@ -365,22 +373,49 @@ public class XMLHelper<T> {
 
             int flag = 0;
 
-            if(!checkTagHasText(keyTag)) {
-                flag += -1;
-            }
-
-            if(!checkTagHasText(valueTag)) {
+            if(StringUtil.isNotEmpty(getTagRefField(keyTag))) {
                 flag += 1;
             }
 
-            if(checkTagHasText(keyTag) && checkTagHasText(valueTag)) {
-                map.put(keyTag.getText(),valueTag.getText());
-            } else if(flag == -1) {
-                mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),valueTag.getText()));
-            } else if(flag == 1) {
-                mapRefMessages.add(new MapRefMessage(flag,keyTag.getText(),getTagRefField(valueTag)));
-            } else {
+            if(StringUtil.isNotEmpty(getTagRefField(valueTag))) {
+                flag += 2;
+            }
+
+            //key和value标签都没有ref属性
+            if(flag == 3) {
                 mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),getTagRefField(valueTag)));
+            //key没有ref属性，value有ref属性
+            } else if(flag == 2) {
+                if(checkTagHasText(keyTag)) {
+                    mapRefMessages.add(new MapRefMessage(flag,keyTag.getText(),getTagRefField(valueTag)));
+                } else {
+                    Object keyTagInnerBean = setBeanProperties(keyTag.element("bean"));
+                    mapRefMessages.add(new MapRefMessage(flag,keyTagInnerBean,getTagRefField(valueTag)));
+                }
+            //key有ref属性，value有ref属性
+            } else if(flag == 1) {
+                if(checkTagHasText(valueTag)) {
+                    mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),valueTag.getText()));
+                } else {
+                    Object valueTagInnerBean = setBeanProperties(valueTag.element("bean"));
+                    mapRefMessages.add(new MapRefMessage(flag,getTagRefField(keyTag),valueTagInnerBean));
+                }
+            //key和value都没有ref属性
+            } else {
+                if(checkTagHasText(keyTag) && checkTagHasText(valueTag)) {
+                    map.put(keyTag.getText(),valueTag.getText());
+                } else if(checkTagHasText(keyTag) && !checkTagHasText(valueTag)) {
+                    Object valueTagInnerBean = setBeanProperties(valueTag.element("bean"));
+                    map.put(keyTag.getText(),valueTagInnerBean);
+                } else if(!checkTagHasText(keyTag) && checkTagHasText(valueTag)) {
+                    Object keyTagInnerBean = setBeanProperties(keyTag.element("bean"));
+                    map.put(keyTagInnerBean,valueTag.getText());
+                } else {
+                    Object keyTagInnerBean = setBeanProperties(keyTag.element("bean"));
+                    Object valueTagInnerBean = setBeanProperties(valueTag.element("bean"));
+                    map.put(keyTagInnerBean,valueTagInnerBean);
+                }
+
             }
         }
         field.set(object,map);
@@ -401,7 +436,6 @@ public class XMLHelper<T> {
         /**
          * 字段对应的bean的ID
          */
-//        private List<String> refValue;
         private Object refValue;
 
         public RefMessage(Field field, Object refValue) {

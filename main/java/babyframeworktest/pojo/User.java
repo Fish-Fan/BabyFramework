@@ -47,7 +47,7 @@ public class User {
         return "User{" +
                 "username='" + username + '\'' +
                 ", age=" + age +
-                ", userCard=" + userCard.size() +
+                ", userCard=" + userCard +
                 ", nickName=" + nickName +
                 '}';
     }

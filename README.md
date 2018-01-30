@@ -10,8 +10,7 @@ xml文件书写与xml标准一致，目前支持bean加载，bean之间的ref引
 | double (Double)   |
 | boolean (Boolean) |
 | String            |
-| 集合类型          |
-|-------------------|
+| **集合类型**          |
 | List              |
 | Set               |
 | Map               |
@@ -56,7 +55,7 @@ xml文件书写与xml标准一致，目前支持bean加载，bean之间的ref引
           <property name="username" value="Jackson"/>
           <property name="age" value="29"/>
           <!--ref的值为其他bean的id-->
-          <property name="userCard" ref="JacksonUserCard">
+          <property name="userCard" ref="JacksonUserCard"/>
   </bean>
 
   <bean id="JacksonUserCard" class="babyframeworktest.pojo.UserCard">
@@ -114,12 +113,21 @@ xml文件书写与xml标准一致，目前支持bean加载，bean之间的ref引
                     <value ref="JacksonUserCard"/>
                 </entry>
                 <entry>
-                    <key>Jackson1</key>
-                    <value ref="JacksonUserCard"/>
+                    <key ref="personNameBean">Jackson1</key>
+                    <value>persionNameBeanValue</value>
                 </entry>
                 <entry>
-                    <key>Jackson2</key>
+                    <key ref="personNameBean"/>
                     <value ref="JacksonUserCard"/>
+                </entry>
+                <!--支持内联bean-->
+                <entry>
+                    <key>
+                        <bean class="xxx"/>
+                    </key>
+                    <value>
+                        <bean class="xxx"/>
+                    </value>
                 </entry>
             </map>
         </property>
