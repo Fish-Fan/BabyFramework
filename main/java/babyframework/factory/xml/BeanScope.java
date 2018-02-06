@@ -1,4 +1,4 @@
-package babyframework.factory;
+package babyframework.factory.xml;
 
 public enum BeanScope {
     SINGLETON,PROTOTYPE

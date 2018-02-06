@@ -1,3 +1,12 @@
+### 读取xml文件的过程
+1. 读取所有的bean,并且设置bean的属性，如果碰到属性的类型为内联bean，
+那么创建这个内联bean的实例，如果读取到属性的类型为ref(引用其他bean的实例)，那么创建
+一个Ref对象，保存该引用的信息。最后将所有的bean保存至beanContainer<String,Bean>
+容器中，其中String为bean的ID,Bean为保存xml信息的对象。
+2. 通过Bean对象中定义的信息，创建bean的实例
+3. 如果容器中存在ref(引用其他bean的实例)，那么从beanContainer容器中获取该实例，并保存至
+Bean对象中的property属性中。
+4. 刷新beanContainer容器，即将ref类型的bean通过反射设置为bean实例的属性。
 ### xml文件书写规范
 xml文件书写与xml标准一致，目前支持bean加载，bean之间的ref引用。
 对bean属性类型的支持如下表所示:
@@ -132,5 +141,19 @@ xml文件书写与xml标准一致，目前支持bean加载，bean之间的ref引
             </map>
         </property>
     </bean>
+</beans>
+```
+
++ 设置bean的作用域
+默认bean的作用域都为单例模式(singleton)，即容器中一个class对应一个bean,当需要获取到这个bean时，容器返回这个bean.
+babyFramework支持另外一个作用域prototype,在该模式下，每次容易返回一个类的实例时，都会去创建一个新的bean,
+即两个bean的hashCode是不相同的。
+
+```xml
+<beans>
+    <!--通常可省略不写-->
+    <bean id="xxx" scope="singleton"/>
+    <!--设置bean的作用域为prototype,每次返回一个新的实例-->
+    <bean id="xxxx" scope="prototype"/>
 </beans>
 ```

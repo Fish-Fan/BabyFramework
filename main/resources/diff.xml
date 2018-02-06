@@ -1,34 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <beans>
-    <bean id="user" class="babyframeworktest.pojo.User">
+    <bean id="user" class="babyframeworktest.pojo.User" scope="singleton">
         <property name="username" value="tom"/>
         <property name="age" value="22"/>
         <property name="userCard">
             <map>
                 <entry>
-                    <key>Jackson</key>
+                    <key>动感地带</key>
                     <value>
-                        <bean id="JacksonUserCard" class="babyframeworktest.pojo.UserCard">
-                            <property name="card">
-                                <bean id="card" class="babyframeworktest.pojo.Card">
-                                    <property name="material" value="NASA钛合金"/>
-                                </bean>
-                            </property>
-                            <property name="id" value="10000000001"/>
-                            <property name="gov" value="焦作市解放区政府"/>
-                        </bean>
+                        <ref bean="JacksonUserCard"/>
                     </value>
                 </entry>
             </map>
         </property>
         <property name="nickName">
             <set>
-                <value>小tom</value>
-                <value>会说话的tom猫</value>
-                <value>美国tom大叔</value>
-                <value>美国tom大叔</value>
+                <value>爱迪生</value>
+                <value>麦克斯韦</value>
             </set>
         </property>
+
     </bean>
 
     <!--<bean id="user1" class="babyframeworktest.pojo.User">-->

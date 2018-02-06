@@ -31,4 +31,22 @@ public final class StringUtil {
     public static String[] splitString(String str, String separator) {
         return StringUtils.splitByWholeSeparator(str, separator);
     }
+
+    /**
+     * 根据属性获取setter方法
+     * @param fieldName
+     * @return
+     */
+    public static String getSetterMethod(String fieldName) {
+        return "set" + fieldName.substring(0,1).toUpperCase() + fieldName.substring(1);
+    }
+
+    /**
+     * 根据属性获取getter方法
+     * @param fieldName
+     * @return
+     */
+    public static String getGetterMethod(String fieldName) {
+        return "get" + fieldName.substring(0,1).toUpperCase() + fieldName.substring(1);
+    }
 }

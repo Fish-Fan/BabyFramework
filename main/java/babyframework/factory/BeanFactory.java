@@ -1,51 +1,42 @@
 package babyframework.factory;
 
+import babyframework.factory.xml.Bean;
 import babyframework.helper.IocHelper;
 import babyframework.helper.XMLHelper;
-import babyframework.util.ReflectionUtil;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 public class BeanFactory {
 
-    Map<Class<?>,Bean> beanMap ;
-    Map<String,Bean> xmlBeanMap ;
+    Map<Class<?>,Bean> beanContainer ;
+    Map<String,Bean> xmlBeanContainer ;
     XMLHelper xmlHelper ;
     public BeanFactory() {
-         beanMap = IocHelper.getBeanMap();
+         beanContainer = IocHelper.getBeanMap();
     }
 
     public BeanFactory(String xmlLocation) {
         this();
         xmlHelper = new XMLHelper(xmlLocation);
-        xmlBeanMap = xmlHelper.getXMLBeanContainer();
+        xmlBeanContainer = xmlHelper.getBeanContainer();
         mergeToBeanMap();
     }
 
     public Object getBeanByID(String ID) {
-        Object o = null;
-        Bean bean =  xmlBeanMap.get(ID);
-        if(bean.scope != BeanScope.SINGLETON) {
-            o = ReflectionUtil.newInstance(bean.cls);
-        } else {
-            o = bean.object;
-        }
-        return o;
+        return xmlHelper.getBeanByID(ID);
     }
 
-    public <T> List<T> getBeanByClass(Class<?> beanClass) {
-        List<T> objectList = new ArrayList<T>();
-        objectList.add((T) beanMap.get(beanClass).object);
-        objectList.addAll(xmlHelper.<T>getBeansByType(beanClass));
-        return objectList;
+    public <T> T getBeanByClass(Class<?> beanClass) {
+        return (T) beanContainer.get(beanClass).getInstance();
     }
 
     public void mergeToBeanMap() {
-        for(Map.Entry<String,Bean> entry : xmlBeanMap.entrySet()) {
+        for(Map.Entry<String,Bean> entry : xmlBeanContainer.entrySet()) {
             Bean bean = entry.getValue();
-            beanMap.put(bean.cls,bean);
+            beanContainer.put(bean.getCls(),bean);
         }
     }
 

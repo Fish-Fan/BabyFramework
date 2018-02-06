@@ -2,7 +2,7 @@ package babyframeworktest.pojo;
 
 public class UserCard {
     private Card card;
-    private long id;
+    private Long id;
     private String gov;
 
     public Card getCard() {

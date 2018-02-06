@@ -1,10 +1,14 @@
 package babyframework.util;
 
+import babyframework.factory.xml.Bean;
 import org.slf4j.LoggerFactory;
 
+import java.beans.IntrospectionException;
+import java.beans.PropertyDescriptor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.logging.Logger;
 
 public final class ReflectionUtil {
@@ -23,6 +27,32 @@ public final class ReflectionUtil {
             e.printStackTrace();
         }
         return o;
+    }
+
+    /**
+     * 创建实例，并完成各种属性的初始化
+     * @return
+     */
+    public static Object newInstance(Class<?> clazz, List<Bean.Property> properties) {
+        Object instance = null;
+        try {
+            instance = clazz.newInstance();
+            for(Bean.Property property : properties) {
+                String name = property.getName();
+                //获取set方法
+                PropertyDescriptor propertyDescriptor = new PropertyDescriptor(name,clazz,StringUtil.getGetterMethod(name),StringUtil.getSetterMethod(name));
+                Method method = propertyDescriptor.getWriteMethod();
+
+                invokeMethod(instance,method,property.getObject());
+            }
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (IntrospectionException e) {
+            e.printStackTrace();
+        }
+        return instance;
     }
 
     /**
