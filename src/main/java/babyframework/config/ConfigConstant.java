@@ -9,5 +9,6 @@ public interface ConfigConstant {
 
     String APP_BASE_PACKAGE = "baby.framework.app.base.package";
     String APP_JSP_PATH = "baby.framework.app.jsp_path";
+    String APP_JSP_END_WITH = "baby.framework.app.jsp_endwith";
     String APP_STATIC_RESOURCE_PATH = "baby.framework.app.static.resource_path";
 }

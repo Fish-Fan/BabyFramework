@@ -1,5 +1,6 @@
 package babyframework.util;
 
+import babyframework.annotation.Controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,6 +17,7 @@ import java.util.jar.JarFile;
 
 public final class ClassUtil {
     private static Logger logger = LoggerFactory.getLogger(ClassUtil.class);
+    private static Set<Class<?>> CLASS_SET = new HashSet<Class<?>>();
 
     /**
      * 获取类加载器
@@ -26,6 +28,9 @@ public final class ClassUtil {
 
     /**
      * 加载类
+     * @param className
+     * @param isInitialized 是否需要执行类的静态代码块
+     * @return
      */
     public static Class<?> loadClass(String className,boolean isInitialized) {
         Class<?> clazz = null;
@@ -39,10 +44,32 @@ public final class ClassUtil {
     }
 
     /**
+     * 加载类，并执行类的静态代码块
+     * @param className
+     * @return
+     */
+    public static Class<?> loadClass(String className) {
+        return loadClass(className,true);
+    }
+
+    /**
+     * 获取controller注解的类的class
+     * @return
+     */
+    public static Set<Class<?>> getControllerClass() {
+        Set<Class<?>> classSet = new HashSet<Class<?>>();
+        for(Class cls : CLASS_SET) {
+            if(cls.isAnnotationPresent(Controller.class)) {
+                classSet.add(cls);
+            }
+        }
+        return classSet;
+    }
+
+    /**
      * 获取指定包下的所有类
      */
     public static Set<Class<?>> getClassSet(String packageName) {
-        Set<Class<?>> classSet = new HashSet<Class<?>>();
 
         try {
             Enumeration<URL> urls = getClassLoader().getResources(packageName.replace(".","/"));
@@ -52,7 +79,7 @@ public final class ClassUtil {
                     String protocol = url.getProtocol();
                     if(protocol.equals("file")) {
                         String packagePath = url.getPath().replaceAll("%20"," ");
-                        addClass(classSet,packagePath,packageName);
+                        addClass(CLASS_SET,packagePath,packageName);
                     } else if(protocol.equals("jar")) {
                         JarURLConnection jarURLConnection = (JarURLConnection) url.openConnection();
                         JarFile jarFile = jarURLConnection.getJarFile();
@@ -63,7 +90,7 @@ public final class ClassUtil {
                                 String jarEntryName = jarEntry.getName();
                                 if(jarEntryName.endsWith(".class")) {
                                     String className = jarEntryName.substring(0,jarEntryName.lastIndexOf(".")).replaceAll("/",".");
-                                    doAddClass(classSet,className);
+                                    doAddClass(CLASS_SET,className);
                                 }
                             }
                         }
@@ -75,7 +102,7 @@ public final class ClassUtil {
             logger.error("无法获取{}下的类",packageName);
             e.printStackTrace();
         }
-        return classSet;
+        return CLASS_SET;
     }
 
     private static void addClass(Set<Class<?>> classSet,String packagePath,String packageName) {

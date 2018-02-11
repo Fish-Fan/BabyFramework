@@ -51,6 +51,13 @@ public final class ConfigHelper {
     }
 
     /**
+     * 获取JSP后缀
+     */
+    public static String getJSPENDWITH() {
+        return PropsUtil.getString(CONFIG_PROPS,ConfigConstant.APP_JSP_END_WITH,".jsp");
+    }
+
+    /**
      *获取静态资源路径
      */
     public static String getStaticPath() {

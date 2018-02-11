@@ -16,7 +16,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 
 
-public class XMLHelper {
+public final class XMLHelper {
     private static Map<String,Bean> beanContainer = new HashMap<String, Bean>();
 
     /**

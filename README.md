@@ -145,6 +145,7 @@ xml文件书写与xml标准一致，目前支持bean加载，bean之间的ref引
 ```
 
 + 设置bean的作用域
+
 默认bean的作用域都为单例模式(singleton)，即容器中一个class对应一个bean,当需要获取到这个bean时，容器返回这个bean.
 babyFramework支持另外一个作用域prototype,在该模式下，每次容易返回一个类的实例时，都会去创建一个新的bean,
 即两个bean的hashCode是不相同的。
