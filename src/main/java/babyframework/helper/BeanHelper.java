@@ -15,7 +15,7 @@ public final class BeanHelper {
     private static final Map<Class<?>,Bean> BEAN_MAP = new HashMap<Class<?>, Bean>();
 
     static {
-        Set<Class<?>> classSet = ClassHelper.getClassSet();
+        Set<Class<?>> classSet = ClassHelper.getBeanClassSet();
         for(Class<?> clazz : classSet) {
             Object o = ReflectionUtil.newInstance(clazz);
             BEAN_MAP.put(clazz,new Bean(clazz,clazz.getName(), BeanScope.SINGLETON,o));
@@ -27,6 +27,21 @@ public final class BeanHelper {
      */
     public static Map<Class<?>,Bean> getBeanMap() {
         return BEAN_MAP;
+    }
+
+    /**
+     * 将Bean装入至容器中
+     * @param cls
+     * @param object
+     */
+    public static void setBean(Class<?> cls,Object object) {
+        try {
+            BEAN_MAP.put(cls,new Bean(cls,cls.getName(),BeanScope.SINGLETON,cls.newInstance()));
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
     }
 
 

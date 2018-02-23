@@ -55,7 +55,7 @@ public final class ClassHelper {
 
     /**
      * 获取应用包下所有Bean
-     * 包含所有的Controller,Service
+     * 包含所有的被Controller,Service注解标记的类
      */
     public static Set<Class<?>> getBeanClassSet() {
         Set<Class<?>> beanClassSet = new HashSet<Class<?>>();

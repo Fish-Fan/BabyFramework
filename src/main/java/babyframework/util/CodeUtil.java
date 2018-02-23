@@ -7,7 +7,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 
-public class CodeUtil {
+public final class CodeUtil {
     private static final Logger logger = LoggerFactory.getLogger(CodeUtil.class);
 
     /**

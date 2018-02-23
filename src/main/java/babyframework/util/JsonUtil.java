@@ -7,7 +7,7 @@ import org.slf4j.LoggerFactory;
 /**
  * 依赖于fastjson
  */
-public class JsonUtil {
+public final class JsonUtil {
     private static Logger logger = LoggerFactory.getLogger(JsonUtil.class);
 
     /**
